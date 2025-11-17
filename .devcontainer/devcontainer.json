@@ -1,0 +1,53 @@
+{
+  "name": "Azure Durable Agents Test",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/{localWorkspaceFolderBasename}",
+  "forwardPorts": [
+    7071,
+    8080,
+    8082,
+    10000,
+    10001,
+    10002
+  ],
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "features": {
+    "ghcr.io/jlaundry/devcontainer-features/azure-functions-core-tools:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "version": "latest",
+      "bicepVersion": "latest"
+    },
+    "ghcr.io/azure/azure-dev/azd:0": {
+      "version": "stable"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-python.python",
+        "bierner.markdown-mermaid",
+        "mhutchie.git-graph",
+        "humao.rest-client"
+      ],
+      "settings": {
+        "chat.editing.autoAcceptDelay": 0,
+        "chat.tools.autoApprove": true,
+        "chat.agent.maxRequests": 50
+      },
+      "mcp": {
+        "servers": {
+          "context7": {
+            "type": "http",
+            "url": "https://mcp.context7.com/mcp"
+          }
+        }
+      }
+    }
+  }
+}

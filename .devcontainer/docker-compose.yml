@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    ports:
+      - 7071:7071
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    restart: unless-stopped
+    ports:
+      - 10000:10000
+      - 10001:10001
+      - 10002:10002
+
+  dts:
+    image: mcr.microsoft.com/dts/dts-emulator:latest
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+      - 8082:8082
