@@ -2,3 +2,12 @@ POST http://localhost:7071/api/agents/MyDurableAgent/run HTTP/1.1
 Content-Type: text/plain
 
 List the US states that begin with the letter 'M'. Include their capitals.
+
+###
+
+# grab the thread ID from the response and add it to this URL
+POST http://localhost:7071/api/agents/MyDurableAgent/run?thread_id= HTTP/1.1
+Content-Type: text/plain
+
+Reverse the order of the states and capitals you previously listed.
+

@@ -1,62 +1,172 @@
+# Azure Functions Durable Agent Sample (Python)
+
+This project demonstrates using the **Microsoft Agent Framework** with **Azure Functions (Python)** and the **durable task framework** to create and run durable agents.
+
+The implementation follows the guidance in the Microsoft Learn tutorial:
+
+> Create and run a durable agent – Microsoft Agent Framework  
+> https://learn.microsoft.com/en-us/agent-framework/tutorials/agents/create-and-run-durable-agent?tabs=bash&pivots=programming-language-python
+
+Use this README as a quick-start guide for running, debugging, and testing the project in a VS Code dev container.
+
 ---
-description: This Python sample demonstrates how to build and deploy a durable AI agent using Azure Functions and the Microsoft Agent Framework with persistent conversation threads.
-page_type: sample
-products:
-- azure-functions
-- azure-openai
-- azure
-urlFragment: durable-agents-quickstart-python
-languages:
-- python
-- bicep
-- azdeveloper
----
-
-# Durable task extension for Microsoft Agent Framework using Azure Developer CLI
-
-This template repository contains a durable AI agent reference sample built with Python and deployed to Azure using the Azure Developer CLI (`azd`). The sample demonstrates how to create an AI agent with persistent conversation threads using Azure Functions, Azure OpenAI, and the Microsoft Agent Framework. This sample demonstrates these key features:
-
-* **Durable conversation threads**. The agent maintains conversation context across multiple interactions using durable orchestration, allowing for natural multi-turn conversations.
-* **Microsoft Agent Framework integration**. Built on the standard Microsoft Agent Framework pattern for creating AI agents with Azure OpenAI.
-* **Managed identity authentication**. Uses Azure managed identity for secure, secret-free connections to Azure OpenAI.
-
-This project is designed to run on your local computer. You can also use GitHub Codespaces if available.
-
-> [!IMPORTANT]
-> This sample creates several resources. Make sure to delete the resource group after testing to minimize charges!
 
 ## Prerequisites
 
-+ [Python 3.10 or later](https://www.python.org/downloads/)
-+ [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local?tabs=v4%2Clinux%2Cpython%2Cportal%2Cbash#install-the-azure-functions-core-tools)
-+ To use Visual Studio Code to run and debug locally:
-  + [Visual Studio Code](https://code.visualstudio.com/)
-  + [Azure Functions extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions)
-+ [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (for deployment)
-+ [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd?tabs=winget-windows%2Cbrew-mac%2Cscript-linux&pivots=os-windows)
-+ An Azure subscription with Microsoft.Web and Microsoft.CognitiveServices [registered resource providers](https://learn.microsoft.com/azure/azure-resource-manager/management/resource-providers-and-types#register-resource-provider)
+- VS Code with **Dev Containers** support (or GitHub Codespaces)
+- Docker (for running the dev container locally)
+- Azure subscription (for optional/prod deployment and managed OpenAI)
+- Access to an **OpenAI-compatible endpoint** (Azure OpenAI or OpenAI)
 
-## Initialize the local project
+---
 
-You can initialize a project from this `azd` template in one of these ways:
+## Dev Container Quick Start
 
-+ Use this `azd init` command from an empty local (root) folder:
+This repo is designed to be run inside the VS Code dev container defined in `./.devcontainer/`.
 
-    ```shell
-    azd init --template durable-agents-quickstart-python
-    ```
+1. **Open the repo in VS Code**
+   - `File` → `Open Folder...` → select `/workspaces/azure-functions-python` (or clone locally first).
 
-    Supply an environment name, such as `durableagent` when prompted. In `azd`, the environment is used to maintain a unique deployment context for your app.
+2. **Reopen in Dev Container**
+   - When prompted, choose **"Reopen in Container"**, or run:
+     - Command Palette → `Dev Containers: Reopen in Container`.
 
-+ Clone the GitHub template repository locally using the `git clone` command:
+3. **(Optional) Activate the local venv**
+   - The dev container typically configures Python automatically, but you can run:
+     - `source .venv/bin/activate`
 
-    ```shell
-    git clone https://github.com/anthonychu/durable-agents-quickstart-python.git
-    cd durable-agents-quickstart-python
-    ```
+4. **Install Python dependencies**
+   - The workspace defines a VS Code task to install dependencies:
+     - Command Palette → `Tasks: Run Task` → `pip install (functions)`
+     - Or in a terminal: `python -m pip install -r requirements.txt`
 
-    You can also clone the repository from your own fork in GitHub.
+---
 
-## Follow the tutorial
+## OpenAI Endpoint Requirements
 
-You can follow the step-by-step tutorial for this sample at [](https://learn.microsoft.com/agent-framework/tutorials/agents/create-and-run-durable-agent?pivots=programming-language-python). The tutorial walks you through the code and deployment process in detail.
+The agent implementation depends on an OpenAI-compatible model endpoint. You have two main options:
+
+### 1. Use an existing / manually-created OpenAI endpoint
+
+You can point the function app at:
+
+- An **Azure OpenAI** resource, or
+- An **OpenAI** endpoint (or other OpenAI-compatible service)
+
+You will need at minimum:
+
+- Endpoint URL
+- API key
+- Model / deployment name
+
+These values must be configured in `local.settings.json` (see **Configuration** below).
+
+### 2. Deploy infrastructure with Bicep
+
+The `./infra/` directory contains Bicep templates to provision the required Azure resources, including OpenAI and related access:
+
+- `infra/main.bicep` – main entry point
+- `infra/main.parameters.json` – sample parameters
+- `infra/app/*.bicep` – app-specific infrastructure
+- `infra/ai/*.bicep` – cognitive / OpenAI resources
+- `infra/rbac/*.bicep` – access management
+
+At a high level, you can deploy with Azure CLI (from the dev container, or your local environment):
+
+```bash
+az group create -n <resource-group-name> -l <region>
+az deployment group create \
+  -g <resource-group-name> \
+  -f infra/main.bicep \
+  -p @infra/main.parameters.json
+```
+
+After deployment, copy the relevant endpoint, keys, and resource names into your `local.settings.json` file.
+
+---
+
+## Local Configuration (`local.settings.json`)
+
+Runtime and secret configuration is managed via `local.settings.json`. A sample file is provided at `./local.settings.sample.json`.
+
+1. **Create your local settings file**
+
+```bash
+cp local.settings.sample.json local.settings.json
+```
+
+2. **Edit `local.settings.json`**
+
+Update the values to match your OpenAI or Azure OpenAI setup (and any other required settings in this repo), for example:
+
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_DEPLOYMENT`
+- Any other app-specific configuration keys defined in `function_app.py` or the sample settings file.
+
+> `local.settings.json` is for local development only and should not be checked into source control.
+
+---
+
+## Running the Durable Agent Locally
+
+The project is an Azure Functions Python app configured for **durable functions / agents** via the Microsoft Agent Framework.
+
+1. **Start the Functions host**
+
+- Use the VS Code task:
+  - Command Palette → `Tasks: Run Task` → `func: host start`
+
+  This will:
+
+  - Ensure dependencies are installed via `pip install (functions)`
+  - Start the local Azure Functions host.
+
+- Or run manually (if the Azure Functions Core Tools are available in the dev container):
+
+```bash
+func host start
+```
+
+2. **Verify Functions are running**
+
+The host will print the list of HTTP triggers and their local URLs. These endpoints are used in `test.http` and for debugging.
+
+---
+
+## Debugging with VS Code (F5)
+
+You can debug the functions and the durable agent orchestration directly in VS Code.
+
+1. Open the workspace in VS Code dev container.
+2. Ensure `local.settings.json` is configured correctly.
+3. Press `F5` (or go to `Run and Debug` → `Start Debugging`).
+4. Select the **Azure Functions** debug configuration if prompted.
+5. VS Code will:
+   - Build and start the Functions host.
+   - Attach the Python debugger.
+
+You can set breakpoints in:
+
+- `function_app.py` (HTTP starter, orchestrator, activity functions)
+- Any other Python modules used by your agent.
+
+When you send requests (see **Testing**), execution will stop on your breakpoints.
+
+---
+
+## Testing with `test.http`
+
+The file `./test.http` contains example HTTP requests for testing the durable agent endpoints.
+
+To use it:
+
+1. Open `test.http` in VS Code.
+2. Ensure the Functions host is running (via task or F5 debugging).
+3. Hover over a request in `test.http` and click **"Send Request"** (requires the REST Client extension or VS Code HTTP tooling).
+4. Inspect the responses for:
+   - Starting a new durable agent / orchestration
+   - Querying status
+   - Sending input/messages to the agent (depending on the implementation)
+
+You can adapt these sample requests to exercise different scenarios or payloads supported by your agent implementation.
