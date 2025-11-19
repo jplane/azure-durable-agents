@@ -5,7 +5,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "DURABLE_TASK_SCHEDULER_CONNECTION_STRING": "Endpoint=http://dts:8080;TaskHub=default;Authentication=None",
     "AZURE_OPENAI_ENDPOINT": "https://<your-resource-name>.openai.azure.com",
-    "AZURE_OPENAI_DEPLOYMENT": "gpt-5-mini",
+    "AZURE_OPENAI_CHAT_DEPLOYMENT_NAME": "gpt-5-mini",
     "AZURE_OPENAI_API_KEY": "<your-azure-openai-api-key>",
     "TASKHUB_NAME": "default"
   }
