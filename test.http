@@ -4,7 +4,7 @@ Content-Type: text/plain
 I want to fly from Atlanta to Madrid in January 2026. I prefer a Monday departure.
 
 ###
-POST http://localhost:7071/api/travel/choice/e1c032dae89140de8524fb57345919bc HTTP/1.1
+POST http://localhost:7071/api/travel/choice/ HTTP/1.1
 Content-Type: text/plain
 
 4
