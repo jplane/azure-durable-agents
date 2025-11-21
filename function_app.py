@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # 1. Define orchestration constants used throughout the workflow.
 FLIGHT_INFO_AGENT_NAME = "FlightInfoAgent"
 USER_CHOICE_PROCESSOR_AGENT_NAME = "UserChoiceProcessorAgent"
-TRAVEL_BOOKING_AGENT_NAME = "TravelBookingAgent"
+TRAVEL_SUMMARY_AGENT_NAME = "TravelSummaryAgent"
 USER_CHOICE_EVENT = "UserChoiceEvent"
 
 
@@ -134,6 +134,7 @@ def _create_agents() -> Any:
         
         If the user is selecting a flight, set 'selection' to the 1-based index of the flight and set 'refinement_prompt' to null.
         If the user is refining the search, set 'refinement_prompt' to the clarifying instructions and set 'selection' to null.
+        There should always be exactly one of 'selection' or 'refinement_prompt' set to a non-null value, and one set to null.
     """
     
     user_choice_agent = client.create_agent(
@@ -141,17 +142,19 @@ def _create_agents() -> Any:
         instructions=user_choice_agent_instructions,
     )
 
-    booking_agent_instructions = """
-        You handle the final booking of a selected flight option.
-        Provide a human readable overview that confirms the booking, summarizes the conversation, and details the booked itinerary.
+    summary_agent_instructions = """
+        You summarize the details of a customer interaction in which they have reviewed, refined, and chosen a flight itinerary.
+        Use the details of the full conversation thread to summarize the user's interactions and the final selected flight.
+        Provide a concise summary suitable for logging or notification purposes.
+        NEVER ask the user what to do next; simply summarize the interaction and the final choice.
     """
 
-    booking_agent = client.create_agent(
-        name=TRAVEL_BOOKING_AGENT_NAME,
-        instructions=booking_agent_instructions,
+    summary_agent = client.create_agent(
+        name=TRAVEL_SUMMARY_AGENT_NAME,
+        instructions=summary_agent_instructions,
     )
 
-    return [flight_info_agent, user_choice_agent, booking_agent]
+    return [flight_info_agent, user_choice_agent, summary_agent]
 
 
 app = AgentFunctionApp(agents=_create_agents(), enable_health_check=True)
@@ -181,8 +184,7 @@ def notify_user(content: dict) -> None:
 
 
 @app.activity_trigger(input_name="content")
-def finalize_booking(content: str) -> None:
-    logger.info("BOOKING: Flight has been booked successfully:")
+def summarize(content: str) -> None:
     logger.info(content)
 
 
@@ -195,9 +197,10 @@ def travel_orchestration(context: DurableOrchestrationContext):
     context.set_custom_status("Starting flight search")
 
     flight_info_agent = app.get_agent(context, FLIGHT_INFO_AGENT_NAME)
-    agent_thread = flight_info_agent.get_new_thread()
-
     choice_processor_agent = app.get_agent(context, USER_CHOICE_PROCESSOR_AGENT_NAME)
+    summary_agent = app.get_agent(context, TRAVEL_SUMMARY_AGENT_NAME)
+
+    agent_thread = flight_info_agent.get_new_thread()
 
     attempt = 0
     max_attempts = 3
@@ -236,7 +239,7 @@ def travel_orchestration(context: DurableOrchestrationContext):
                 response_format=UserChoice
             )
 
-            choice = cast(UserChoice, _coerce_structured(choice_processor_agent_result["structured_response"], UserChoice))
+            choice = cast(UserChoice, _coerce_structured(choice_processor_agent_result, UserChoice))
 
             if choice.selection is not None:
                 index = choice.selection - 1
@@ -248,16 +251,14 @@ def travel_orchestration(context: DurableOrchestrationContext):
 
                 selected_flight = FlightOption.model_validate(flights[index])
 
-                context.set_custom_status("Flight selected by human reviewer. Booking flight...")
+                context.set_custom_status("Flight selected by human reviewer. Summarizing flight...")
 
-                booking_agent = app.get_agent(context, TRAVEL_BOOKING_AGENT_NAME)
-
-                booking_result = yield booking_agent.run(
+                summary_result = yield summary_agent.run(
                     messages=selected_flight.model_dump(),
                     thread=agent_thread
                 )
 
-                yield context.call_activity("finalize_booking", booking_result["response"])
+                yield context.call_activity("summarize", summary_result["response"])
 
                 context.set_custom_status(
                     f"Flight booked successfully at {context.current_utc_datetime:%Y-%m-%dT%H:%M:%S}"
@@ -269,7 +270,7 @@ def travel_orchestration(context: DurableOrchestrationContext):
                 if choice.refinement_prompt is None or not choice.refinement_prompt.strip():
                     raise ValueError("Refinement prompt cannot be empty.")
 
-                prompt = f"\nUser refinement: {choice.refinement_prompt.strip()}"
+                prompt = f"User refinement: {choice.refinement_prompt.strip()}"
 
                 context.set_custom_status(f"Refinement received. Regenerating flight options. Iteration #{attempt}.")
             
@@ -283,7 +284,7 @@ def travel_orchestration(context: DurableOrchestrationContext):
 # 5. HTTP endpoint that starts the human-in-the-loop orchestration.
 @app.route(route="travel/run", methods=["POST"])
 @app.durable_client_input(client_name="client")
-async def start_travel_booking(
+async def start_orchestration(
     req: func.HttpRequest,
     client: DurableOrchestrationClient,
 ) -> func.HttpResponse:

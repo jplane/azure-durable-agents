@@ -1,14 +1,13 @@
 POST http://localhost:7071/api/travel/run HTTP/1.1
 Content-Type: text/plain
 
-I want to fly from New York to Paris on July 15th, departing in the morning.
+I want to fly from Atlanta to Madrid in January 2026. I prefer a Monday departure.
 
 ###
-POST http://localhost:7071/api/travel/choice/ce818b76fdcb4c4fbb36f87e862685c5 HTTP/1.1
+POST http://localhost:7071/api/travel/choice/e1c032dae89140de8524fb57345919bc HTTP/1.1
 Content-Type: text/plain
 
-I approve the third option.
-
+4
 
 ###
-GET http://localhost:7071/api/travel/status/<instanceId> HTTP/1.1
+GET http://localhost:7071/api/travel/status/ HTTP/1.1
